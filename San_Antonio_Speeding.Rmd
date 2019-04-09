@@ -58,7 +58,8 @@ san_antonio1<-san_antonio%>%
 
   drop_na(lng, lat, district, date)%>%
   
-#mutated time to only get the hour because I want to look at the stops in a day not across dates. I also mutated the year date for my later filter. 
+#mutated time to only get the hour because I want to look at the stops in a day
+#not across dates. I also mutated the year date for my later filter.
   
  mutate(time = hour(time), year = year(date))%>%
   
@@ -73,7 +74,9 @@ san_antonio1<-san_antonio%>%
   
 filter(str_detect(reason_for_stop, "SPEED"), speed > 0, speed > posted_speed) %>%
   
-# the dataset was still extremely large and I could not get the gganimate to work so I narrowed my dataset down to only stops in 2018, which still also is a lot and takes awhile to create the map.
+# the dataset was still extremely large and I could not get the gganimate to
+# work so I narrowed my dataset down to only stops in 2018, which still also is
+# a lot and takes awhile to create the map.
   
   filter(year == 2018)
 
