@@ -1,0 +1,121 @@
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+
+# neccessary libraries for the manipulation of data and creation of graphic
+
+library(tidyverse)
+library(sf)
+library(fs) 
+library(ggplot2)
+library(lubridate)
+library(dplyr)
+library(ggthemes)
+library(gifski)
+library(png) 
+library(gganimate)
+
+```
+
+```{r loading_data}
+
+# Read in the rds file containing San Antonio's data directly from the Stanford
+# Open Policing Project Website
+
+san_antonio <- read_rds(url("https://stacks.stanford.edu/file/druid:tr137st9964/tr137st9964_tx_san_antonio_2019_02_25.rds"))
+
+#downloading shape file to create a map of San Antonio
+
+download.file(
+  url = "https://stacks.stanford.edu/file/druid:tr137st9964/tr137st9964_tx_san_antonio_shapefiles_2019_02_25.tgz", 
+  destfile ="san_antonio_shapefile.tgz",
+  mode = 'wb',
+  quiet = TRUE)
+
+# extracts the contents of "san_antonio_shapefile.tgz"
+
+untar("san_antonio_shapefile.tgz")
+
+san_antonio_sf <- read_sf("./tx_san_antonio_shapefiles/sSAPDDistricts.shp")
+
+# Delete shape files which are very large and clutter your files tab and
+# environment.
+
+file_delete(c("san_antonio_shapefile.tgz", "tx_san_antonio_shapefiles/"))
+
+
+```
+
+
+```{r data_manipulation}
+# I wanted to visualize when most people are stopped for speeding to see if
+# there are trends as to when people speed.
+
+san_antonio1<-san_antonio%>% 
+
+#sf does not work well with Nas
+
+  drop_na(lng, lat, district, date)%>%
+  
+#mutated time to only get the hour because I want to look at the stops in a day not across dates. I also mutated the year date for my later filter. 
+  
+ mutate(time = hour(time), year = year(date))%>%
+  
+# This filter handles everything I needed to widdle down the huge San Antonio
+# dataset to the one releveant for my query. There was no plain speeding
+# reason for stopping so I used str_detect to capture all the reasons that
+# included speed. Some speeds were 0 and were stopped for going to slow, which
+# also did not lend well to the question I was asking so I filtered those out
+# as well. Also, I added the speed > posted_speed, which is the speed limit to
+# make sure all the stops I have in my dataset are ones where they are going
+# faster than the were supposed to be going.
+  
+filter(str_detect(reason_for_stop, "SPEED"), speed > 0, speed > posted_speed) %>%
+  
+# the dataset was still extremely large and I could not get the gganimate to work so I narrowed my dataset down to only stops in 2018, which still also is a lot and takes awhile to create the map.
+  
+  filter(year == 2018)
+
+
+#adds the geomtry so that I can overlay points on the map of San Antonio. 
+
+san_antonio_locations <- st_as_sf(san_antonio1, 
+                             coords = c("lng", "lat"), 
+                             crs = 4326) 
+
+```
+
+```{r animated_graphic_creation}
+
+ggplot(data = san_antonio_sf) +
+
+#creates the base mape of San Antonio
+  
+  geom_sf()+
+#adds all of the stops for speeding as points on the map
+  
+geom_sf(data = san_antonio_locations) + 
+  
+#animates my graph to show the stops at each hour to be able to compare hours.
+  
+  transition_manual(time)+
+
+# for aesthetic purposes eliminates tick marks
+  
+  theme_map()+
+
+# eliminates unnecessary grid lines
+  
+  theme(panel.grid = element_line(color = "white"))+
+
+# titles to describe my findings and caption to give credit to source of my data.
+  labs(title = "Stops For Speeding in 2018 at {current_frame}:00 in San Antonio, TX ",
+                   subtitle= "Speeding Violations Pick Up During the Work Day Hours",
+                   caption = "Stanford Open Policing Project")
+
+```
+
+
+
+
